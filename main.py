@@ -1,0 +1,116 @@
+# -*- coding: utf-8 -*- 
+# @Time 2020/3/14 20:37
+# @Author wcy
+import os
+import time
+
+import tensorflow as tf
+import numpy as np
+
+from src.dataset import Dataset
+from src.network import CostumeNetwork
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+def train():
+    batch_size = 64
+    lr = 0.001
+    logpath = "resources/logs/"
+    model_path = "resources/model"
+    train_name = "train_1"
+    test_name = "test_1"
+    net = CostumeNetwork(batch=batch_size, keep_prob=0.5)
+    input = net.get_input()
+    label = net.labels
+    output = net.get_output()
+    total_loss = net.avg_loss
+    # 定义优化器
+    step_per_epoch = 50  # 切换学习率间隔步数
+    global_step = tf.Variable(0, trainable=False)
+    # 学习率连续衰减
+    starter_learning_rate = lr
+    end_learning_rate = 0.000005
+    decay_rate = 0.01
+    start_decay_step = 100
+    decay_steps = 5000  #
+    learning_rate = (
+        tf.where(
+            tf.greater_equal(global_step, start_decay_step),  # if global_step >= start_decay_step
+            # 具体选择那个衰减函数，请查看decay.py绘制的曲线
+            tf.train.polynomial_decay(starter_learning_rate, global_step - start_decay_step, decay_steps,
+                                      end_learning_rate, power=1.0),
+            # tf.train.exponential_decay(starter_learning_rate, global_step - start_decay_step, decay_steps=decay_steps, decay_rate=decay_rate),
+            # tf.train.inverse_time_decay(starter_learning_rate, global_step - start_decay_step, decay_steps=decay_steps, decay_rate=decay_rate),
+            # tf.train.natural_exp_decay(starter_learning_rate, global_step - start_decay_step, decay_steps=decay_steps, decay_rate=decay_rate),
+            starter_learning_rate
+        )
+    )
+    tf.summary.scalar("learning_rate", learning_rate)
+    with tf.variable_scope(None, "optimizer"):
+        optimizer = tf.train.AdamOptimizer(learning_rate, epsilon=1e-8)
+        train_op = optimizer.minimize(total_loss, global_step, colocate_gradients_with_ops=True)
+
+    merged_summary_op = tf.summary.merge_all()
+
+    saver = tf.train.Saver(max_to_keep=10)
+    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
+        # saver.restore(sess, tf.train.latest_checkpoint(os.path.join(model_path, pre_model)))
+        train_writer = tf.summary.FileWriter(logpath + train_name, sess.graph)
+        test_writer = tf.summary.FileWriter(logpath + test_name, sess.graph)
+
+        last_gs_num = last_gs_num2 = 0
+        initial_gs_num = sess.run(global_step)
+
+        # 重置 global_step 为 0
+        sess.run(tf.assign(global_step, 0))
+        initial_gs_num = sess.run(global_step)
+        print("initial_gs_num={}".format(initial_gs_num))
+        dataset = Dataset(batch_size=batch_size)
+        max_epoch = 99999999
+        while True:
+
+            train_set = dataset.next_baxtch()
+            images_train = train_set['images_norm2']
+            lables_train = train_set['labels_index']
+            _, gs_num = sess.run([train_op, global_step],
+                                 feed_dict={input: images_train,
+                                            label: lables_train
+                                            })
+            if gs_num > step_per_epoch * max_epoch:
+                break
+
+            if gs_num - last_gs_num >= 5:
+                train_loss_total, train_accuracy, train_lr_val, train_summary = sess.run(
+                    [total_loss, net.accuracy, learning_rate,
+                     merged_summary_op],
+                    feed_dict={input: images_train,
+                               label: lables_train
+                               },
+                )
+                test_set = dataset.next_batch_vali()
+                images_test = test_set['images_norm2']
+                lables_test = test_set['labels_index']
+                test_loss_total, test_accuracy, test_lr_val, test_summary = sess.run(
+                    [total_loss, net.accuracy, learning_rate, merged_summary_op],
+                    feed_dict={input: images_test,
+                               label: lables_test,
+                               },
+                )
+                print(f"train_loss_total: {train_loss_total} test_loss_total: {test_loss_total}\ntrain_accuracy: {train_accuracy} test_accuracy: {test_accuracy}")
+                last_gs_num = gs_num
+                if gs_num >= 0:
+                    # train_writer.add_run_metadata(run_metadata, 'step%03d' % gs_num, global_step=gs_num)
+                    # test_writer.add_run_metadata(run_metadata, 'step%03d' % gs_num, global_step=gs_num)
+                    train_writer.add_summary(train_summary, gs_num)
+                    test_writer.add_summary(test_summary, gs_num)
+
+            if gs_num - last_gs_num2 >= 100:
+                saver.save(sess, os.path.join(model_path, train_name, 'model'),
+                           global_step=global_step)
+                last_gs_num2 = gs_num
+
+
+if __name__ == '__main__':
+    train()
