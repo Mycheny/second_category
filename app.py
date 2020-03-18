@@ -44,11 +44,11 @@ def resize_image(image, width, height):
 if __name__ == '__main__':
     batch_size = 1
     src_shape = (128, 128)
-    dataset = Dataset(src_shape=src_shape, src_path=None, batch_size=batch_size, shadow=1)
+    dataset = Dataset(src_shape=src_shape, src_path=None, batch_size=batch_size, shadow=0)
 
-    model_path = "resources/model/train_1"
+    model_path = "resources/model/train_2"
     root = "D:\\color\\images"
-    net = CostumeNetwork(batch=batch_size, trainable=True)
+    net = CostumeNetwork(batch=batch_size, trainable=False)
     input = net.get_input()
     net_labels = net.labels
     logits = net.get_output()
@@ -57,6 +57,16 @@ if __name__ == '__main__':
     ok = 0
     saver = tf.train.Saver()
     with tf.Session() as sess:
+
+        trainable_vars1 = tf.trainable_variables()
+        TRAINABLE_VARIABLES = tf.GraphKeys.TRAINABLE_VARIABLES
+        trainable_vars2 = tf.get_collection(TRAINABLE_VARIABLES)
+        freeze_conv_var_list = [t for t in trainable_vars1 if not t.name.startswith(u'conv')]
+
+        g_list = tf.global_variables()
+        bn_moving_vars = [g for g in g_list if 'moving_mean' in g.name]
+        bn_moving_vars += [g for g in g_list if 'moving_variance' in g.name]
+
         print(tf.train.latest_checkpoint(model_path))
         # sess.run(tf.global_variables_initializer())
         saver.restore(sess, tf.train.latest_checkpoint(model_path))
@@ -95,6 +105,8 @@ if __name__ == '__main__':
         #     # cv2.waitKey(1)
         # print(f"{ok}/{count}  {ok / count}")
 
+            b = sess.run(bn_moving_vars[0])
+            print(f"{b}")
             data = dataset.next_batch_vali()
             images_NotNorm = data['images_NotNorm']
             image_norm = data['images_norm2']

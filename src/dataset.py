@@ -27,7 +27,7 @@ class Dataset(object):
             self.cache_max = 10  # 内存中缓存的最大训练batch数
         elif sysstr == "Linux":
             if src_path is None:
-                self.src_path = "/stor/wcy/costume_data/images"
+                self.src_path = "/stor/wcy/costume_data/dataset"
             else:
                 self.src_path = src_path
             self.cache_vali = 5  # 内存中缓存的验证batch数

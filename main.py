@@ -6,19 +6,23 @@ import time
 
 import tensorflow as tf
 import numpy as np
+from tensorflow.python.ops import control_flow_ops
 
 from src.dataset import Dataset
 from src.network import CostumeNetwork
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+gpu_id = int(os.environ["CUDA_VISIBLE_DEVICES"])
+
 
 def train():
     batch_size = 64
     lr = 0.001
     logpath = "resources/logs/"
     model_path = "resources/model"
-    train_name = "train_1"
-    test_name = "test_1"
+    pre_model = "pre_model"
+    train_name = f"train_{gpu_id}"
+    test_name = f"test_{gpu_id}"
     net = CostumeNetwork(batch=batch_size, keep_prob=0.5)
     input = net.get_input()
     label = net.labels
@@ -48,11 +52,24 @@ def train():
     tf.summary.scalar("learning_rate", learning_rate)
     with tf.variable_scope(None, "optimizer"):
         optimizer = tf.train.AdamOptimizer(learning_rate, epsilon=1e-8)
-        train_op = optimizer.minimize(total_loss, global_step, colocate_gradients_with_ops=True)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            train_op = optimizer.minimize(total_loss, global_step, colocate_gradients_with_ops=True)
 
+    trainable_vars1 = tf.trainable_variables()
+    TRAINABLE_VARIABLES = tf.GraphKeys.TRAINABLE_VARIABLES
+    trainable_vars2 = tf.get_collection(TRAINABLE_VARIABLES)
+    freeze_conv_var_list = [t for t in trainable_vars1 if not t.name.startswith(u'conv')]
+    tf.summary.histogram("trainable_vars1", trainable_vars1[124])
     merged_summary_op = tf.summary.merge_all()
 
-    saver = tf.train.Saver(max_to_keep=10)
+    var_list = tf.trainable_variables()
+    g_list = tf.global_variables()
+    bn_moving_vars = [g for g in g_list if 'moving_mean' in g.name]
+    bn_moving_vars += [g for g in g_list if 'moving_variance' in g.name]
+    var_list += bn_moving_vars
+    saver = tf.train.Saver(var_list=var_list, max_to_keep=10)
+    # saver1 = tf.train.Saver(max_to_keep=10)
     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
@@ -70,11 +87,10 @@ def train():
         dataset = Dataset(batch_size=batch_size)
         max_epoch = 99999999
         while True:
-
             train_set = dataset.next_baxtch()
             images_train = train_set['images_norm2']
             lables_train = train_set['labels_index']
-            _, gs_num = sess.run([train_op, global_step],
+            _, gs_num, b = sess.run([train_op, global_step, bn_moving_vars[0]],
                                  feed_dict={input: images_train,
                                             label: lables_train
                                             })
@@ -82,6 +98,7 @@ def train():
                 break
 
             if gs_num - last_gs_num >= 5:
+                print(b)
                 train_loss_total, train_accuracy, train_lr_val, train_summary = sess.run(
                     [total_loss, net.accuracy, learning_rate,
                      merged_summary_op],

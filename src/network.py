@@ -17,6 +17,7 @@ class CostumeNetwork(BaseNetwork):
         inputs = {'image': self.input}
         self.labels = tf.placeholder(tf.int64, (batch), name="output_lable")
         self.keep_prob = keep_prob
+        self.trainable = trainable
         BaseNetwork.__init__(self, inputs, trainable)
         # if trainable:
         self.init_loss()
@@ -24,7 +25,7 @@ class CostumeNetwork(BaseNetwork):
     def setup(self):
         with tf.variable_scope(None, "ExtractFeature"):
             feature_name = "feature"
-            net, end_points = nets.resnet_v2.resnet_v2_50(self.input)
+            net, end_points = nets.resnet_v2.resnet_v2_50(self.input, is_training=self.trainable)
             feature = end_points[
                 "{}/resnet_v2_50/block4/unit_3/bottleneck_v2/conv2".format(tf.get_variable_scope().name)]
             self.layers[feature_name] = feature
