@@ -98,7 +98,7 @@ def train():
                 break
 
             if gs_num - last_gs_num >= 5:
-                print(b)
+                # print(b)
                 train_loss_total, train_accuracy, train_lr_val, train_summary = sess.run(
                     [total_loss, net.accuracy, learning_rate,
                      merged_summary_op],

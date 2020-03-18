@@ -100,7 +100,26 @@ class CostumeNetwork(BaseNetwork):
 
             tf.summary.scalar("loss", self.avg_loss)
             tf.summary.scalar("accuracy", self.accuracy)
-            tf.summary.image("image", self.input)
+            predict = tf.argmax(self.softmax, 1)
+            tf.summary.image("image", self.draw_boxes(self.input, predict, self.labels))
+
+    def draw_boxes(self, images, predict, labels, rect_w=3, rect_h=3):
+        """
+        根据labels在images上绘制笔尖位置的矩形框
+        :param images:  a 'Tensor' of shape `[batch, height, width, channels]` where `channels` is 1, 3, or 4.
+        :param labels:  shape = [batch, height，width, 5], 5的意义：[是否笔尖， 是否笔尾， x坐标占cell宽的百分比， y坐标占cell高度的百分比， 是否可见]
+        :param rect_w:  矩形宽度, 默认3px
+        :param rect_h:  矩形高度, 默认3px
+        :return:
+        """
+        classes = tf.convert_to_tensor([[[0.1, 0.1, 0.2, 0.2]], [[0.1, 0.8, 0.2, 0.9]]], dtype=tf.float32)
+        boxes = []
+        b, h, w, c = images.get_shape().as_list()
+        for i in range(b):
+            boxes.append(classes[predict[i]])
+        boxes = tf.cast(boxes, tf.float32)
+        image_with_boxes = tf.image.draw_bounding_boxes(images, boxes)
+        return image_with_boxes
 
 
 if __name__ == '__main__':
