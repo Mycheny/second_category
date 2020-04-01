@@ -11,9 +11,17 @@ from tensorflow.python.ops import control_flow_ops
 from src.dataset import Dataset
 from src.network import CostumeNetwork
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 gpu_id = int(os.environ["CUDA_VISIBLE_DEVICES"])
 
+
+def get_freeze():
+    with tf.gfile.FastGFile("resources/pb/model.pb", 'rb') as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        input0, softmax0 = tf.import_graph_def(graph_def, name="haha", return_elements=["input/input_image:0", "losses/Softmax:0"])
+        # constant_ops = [op.outputs[0] for op in sess.graph.get_operations() if op.type == "Const"]
+        print()
 
 def train():
     batch_size = 64
@@ -23,11 +31,6 @@ def train():
     pre_model = "pre_model"
     train_name = f"train_{gpu_id}"
     test_name = f"test_{gpu_id}"
-    net = CostumeNetwork(batch=batch_size, keep_prob=0.5)
-    input = net.get_input()
-    label = net.labels
-    output = net.get_output()
-    total_loss = net.avg_loss
     # 定义优化器
     step_per_epoch = 50  # 切换学习率间隔步数
     global_step = tf.Variable(0, trainable=False)
@@ -72,8 +75,8 @@ def train():
     # saver1 = tf.train.Saver(max_to_keep=10)
     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     with tf.Session(config=config) as sess:
+        # get_freeze(sess)
         sess.run(tf.global_variables_initializer())
-        # saver.restore(sess, tf.train.latest_checkpoint(os.path.join(model_path, pre_model)))
         train_writer = tf.summary.FileWriter(logpath + train_name, sess.graph)
         test_writer = tf.summary.FileWriter(logpath + test_name, sess.graph)
 
@@ -130,4 +133,8 @@ def train():
 
 
 if __name__ == '__main__':
+    sess = tf.Session()
+    get_freeze()
+    # sess.close()
+
     train()

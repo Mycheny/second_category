@@ -11,9 +11,21 @@ from tensorflow.python.ops import control_flow_ops
 from src.dataset import Dataset
 from src.network import CostumeNetwork
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 gpu_id = int(os.environ["CUDA_VISIBLE_DEVICES"])
 
+
+def get_freeze_tensor():
+    with tf.gfile.FastGFile("model_pb/tensorflow_inception_graph.pb", 'rb') as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        input0, output0 = tf.import_graph_def(graph_def, return_elements=["DecodeJpeg/contents:0", "pool_3/_reshape:0"])
+        return input0, output0
+
+
+def build_net():
+    input0, output0 = get_freeze_tensor()
+    print()
 
 def train():
     batch_size = 64
@@ -23,11 +35,8 @@ def train():
     pre_model = "pre_model"
     train_name = f"train_{gpu_id}"
     test_name = f"test_{gpu_id}"
-    net = CostumeNetwork(batch=batch_size, keep_prob=0.5)
-    input = net.get_input()
-    label = net.labels
-    output = net.get_output()
-    total_loss = net.avg_loss
+
+    build_net()
     # 定义优化器
     step_per_epoch = 50  # 切换学习率间隔步数
     global_step = tf.Variable(0, trainable=False)
@@ -40,12 +49,8 @@ def train():
     learning_rate = (
         tf.where(
             tf.greater_equal(global_step, start_decay_step),  # if global_step >= start_decay_step
-            # 具体选择那个衰减函数，请查看decay.py绘制的曲线
             tf.train.polynomial_decay(starter_learning_rate, global_step - start_decay_step, decay_steps,
                                       end_learning_rate, power=1.0),
-            # tf.train.exponential_decay(starter_learning_rate, global_step - start_decay_step, decay_steps=decay_steps, decay_rate=decay_rate),
-            # tf.train.inverse_time_decay(starter_learning_rate, global_step - start_decay_step, decay_steps=decay_steps, decay_rate=decay_rate),
-            # tf.train.natural_exp_decay(starter_learning_rate, global_step - start_decay_step, decay_steps=decay_steps, decay_rate=decay_rate),
             starter_learning_rate
         )
     )
@@ -72,8 +77,8 @@ def train():
     # saver1 = tf.train.Saver(max_to_keep=10)
     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     with tf.Session(config=config) as sess:
+        # get_freeze(sess)
         sess.run(tf.global_variables_initializer())
-        # saver.restore(sess, tf.train.latest_checkpoint(os.path.join(model_path, pre_model)))
         train_writer = tf.summary.FileWriter(logpath + train_name, sess.graph)
         test_writer = tf.summary.FileWriter(logpath + test_name, sess.graph)
 

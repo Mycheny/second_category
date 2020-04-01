@@ -46,7 +46,7 @@ if __name__ == '__main__':
     src_shape = (128, 128)
     dataset = Dataset(src_shape=src_shape, src_path=None, batch_size=batch_size, shadow=0)
 
-    model_path = "resources/model/train_2"
+    model_path = "resources/model/train_0"
     root = "D:\\color\\images"
     net = CostumeNetwork(batch=batch_size, trainable=False)
     input = net.get_input()
@@ -57,7 +57,6 @@ if __name__ == '__main__':
     ok = 0
     saver = tf.train.Saver()
     with tf.Session() as sess:
-
         trainable_vars1 = tf.trainable_variables()
         TRAINABLE_VARIABLES = tf.GraphKeys.TRAINABLE_VARIABLES
         trainable_vars2 = tf.get_collection(TRAINABLE_VARIABLES)
@@ -105,8 +104,8 @@ if __name__ == '__main__':
         #     # cv2.waitKey(1)
         # print(f"{ok}/{count}  {ok / count}")
 
-            b = sess.run(bn_moving_vars[0])
-            print(f"{b}")
+            # b = sess.run(bn_moving_vars[0])
+            # print(f"{b}")
             data = dataset.next_batch_vali()
             images_NotNorm = data['images_NotNorm']
             image_norm = data['images_norm2']
@@ -117,9 +116,12 @@ if __name__ == '__main__':
                                                                  net_labels: labels_index})
             if np.argmax(result, axis=1)[0]==labels_index[0]:
                 ok+=1
+            else:
+                cv2.imwrite(f"resources/image82/{np.argmax(result, axis=1)[0]}_{labels_index[0]}_{str(ok)}.jpg", images_NotNorm[0].astype(np.uint8))
             count+=1
             print(cm)
             print(f"{ok}/{count} # {ok/count} # ", acc)
+
             # cv2.imshow("", images_NotNorm[0].astype(np.uint8))
             # cv2.waitKey(1)
             # print()

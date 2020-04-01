@@ -13,7 +13,6 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-
 class Dataset(object):
     def __init__(self, src_shape=(128, 128), src_path=None, batch_size=3, channel=3, shadow=1):
         sysstr = platform.system()

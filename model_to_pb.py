@@ -15,7 +15,7 @@ def main():
     net_labels = net.labels
     logits = net.get_output()
     softmax = net.softmax
-    model_path = "resources/model/train_1"
+    model_path = "resources/model/train_0"
     saver = tf.train.Saver()
     with tf.Session() as sess:
         constant_ops = [op for op in sess.graph.get_operations()]
@@ -31,7 +31,7 @@ def main():
 
 
 def resize_image(image, width, height):
-    top, bottom, left, right = (0, 0, 0, 0)
+    top, bottom, left, right = 0, 0, 0, 0
     # 获取图像尺寸
     h, w, _ = image.shape
     if h / w < height / width:

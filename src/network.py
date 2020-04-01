@@ -4,10 +4,12 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as contrib
 from tensorflow.contrib.slim import nets
+from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_arg_scope
 from tensorflow.python.ops.rnn import dynamic_rnn
 
 from src.network_base import BaseNetwork
 
+tf.random.set_random_seed(10)
 
 class CostumeNetwork(BaseNetwork):
     def __init__(self, batch=1, image_width=128, image_height=128, keep_prob=1.0, trainable=True):
@@ -24,11 +26,12 @@ class CostumeNetwork(BaseNetwork):
 
     def setup(self):
         with tf.variable_scope(None, "ExtractFeature"):
-            feature_name = "feature"
-            net, end_points = nets.resnet_v2.resnet_v2_50(self.input, is_training=self.trainable)
-            feature = end_points[
-                "{}/resnet_v2_50/block4/unit_3/bottleneck_v2/conv2".format(tf.get_variable_scope().name)]
-            self.layers[feature_name] = feature
+            # with resnet_arg_scope([nets.resnet_v2.resnet_v2_50], batch_norm_decay=0.9):
+                feature_name = "feature"
+                net, end_points = nets.resnet_v2.resnet_v2_50(self.input, is_training=self.trainable)
+                feature = end_points[
+                    "{}/resnet_v2_50/block4/unit_3/bottleneck_v2/conv2".format(tf.get_variable_scope().name)]
+                self.layers[feature_name] = feature
         with tf.variable_scope(None, "ClassifyFeature"):
             (self.feed(feature_name)
              .convb(3, 3, 256, 1, name="layer1")
@@ -45,6 +48,13 @@ class CostumeNetwork(BaseNetwork):
              .fc(128, name="fc3")
              .fc(2, name="output", relu=False)
              )
+        # with tf.variable_scope(None, "FullConnection"):
+        #     (self.feed("feature")
+        #      .fc(1024, name="fc1")
+        #      .fc(512, name="fc2")
+        #      .fc(512, name="fc3")
+        #      .fc(2, name="output", relu=False)
+        #      )
 
     def get_input(self):
         return self.input
