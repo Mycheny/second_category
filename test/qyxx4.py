@@ -195,11 +195,13 @@ def main():
     with tf.name_scope('final_training_ops'):
         weights1 = tf.Variable(tf.truncated_normal([BOTTLENECK_TENSOR_SIZE, 1024], stddev=0.001))
         biases1 = tf.Variable(tf.zeros(1024))
-        logits1 = tf.matmul(bottleneck_input, weights1) + biases1
+        y1 = tf.matmul(bottleneck_input, weights1) + biases1
+        logits1 = tf.nn.sigmoid(y1)
 
         weights2 = tf.Variable(tf.truncated_normal([1024, 512], stddev=0.001))
         biases2 = tf.Variable(tf.zeros(512))
-        logits2 = tf.matmul(logits1, weights2) + biases2
+        y2 = tf.matmul(logits1, weights2) + biases2
+        logits2 = tf.nn.sigmoid(y2)
 
         weights3 = tf.Variable(tf.truncated_normal([512, n_classes], stddev=0.001))
         biases3 = tf.Variable(tf.zeros(n_classes))
@@ -222,8 +224,8 @@ def main():
     # 图定义结束
     merged_summary_op = tf.summary.merge_all()
     with tf.Session() as sess:
-        train_writer = tf.summary.FileWriter("logs/qyxx4/train", sess.graph)
-        vali_writer = tf.summary.FileWriter("logs/qyxx4/vali", sess.graph)
+        train_writer = tf.summary.FileWriter("logs/sigmoid_qyxx4/train", sess.graph)
+        vali_writer = tf.summary.FileWriter("logs/sigmoid_qyxx4/vali", sess.graph)
         init = tf.initialize_all_variables()
         sess.run(init)
         for i in range(STEPS):
