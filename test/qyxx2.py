@@ -214,11 +214,12 @@ def main():
     with tf.name_scope('evaluation'):
         correct_prediction = tf.equal(tf.argmax(final_tensor, 1), tf.argmax(ground_truth_input, 1))
         evaluation_step = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    tf.summary.scalar("predict", evaluation_step)
     # 图定义结束
     merged_summary_op = tf.summary.merge_all()
     with tf.Session() as sess:
-        vali_writer = tf.summary.FileWriter("logs/train", sess.graph)
-        test_writer = tf.summary.FileWriter("logs/test", sess.graph)
+        train_writer = tf.summary.FileWriter("logs/qyxx2/train", sess.graph)
+        vali_writer = tf.summary.FileWriter("logs/qyxx2/vali", sess.graph)
         init = tf.initialize_all_variables()
         sess.run(init)
         for i in range(STEPS):
@@ -228,7 +229,7 @@ def main():
             except Exception as e:
                 print("error")
                 continue
-            sess.run(train_step, feed_dict={bottleneck_input:train_bottlenecks, ground_truth_input: train_ground_truth})
+            _, merged_summary_op_train = sess.run([train_step, merged_summary_op], feed_dict={bottleneck_input:train_bottlenecks, ground_truth_input: train_ground_truth})
             # 在验证数据上测试正确率
             if i%50 == 0 or i+1 == STEPS:
                 try:
@@ -236,9 +237,12 @@ def main():
                 except Exception as e:
                     print("error vali")
                     continue
-                validation_accuracy, cm = sess.run([evaluation_step, confusion_matrix], feed_dict={bottleneck_input:validation_bottlenecks, ground_truth_input:validation_ground_truth})
+                validation_accuracy, cm, merged_summary_op_vali = sess.run([evaluation_step, confusion_matrix, merged_summary_op], feed_dict={bottleneck_input:validation_bottlenecks, ground_truth_input:validation_ground_truth})
                 # draw_cm(cm)
                 print(f"{i} validation_accuracy: {validation_accuracy}")
+                train_writer.add_summary(merged_summary_op_train, i)
+                vali_writer.add_summary(merged_summary_op_vali, i)
+
         # 在最后的测试数据上测试正确率
         test_bottlenecks, test_ground_truth = get_test_bottlenecks(sess, image_lists, n_classes, jpeg_data_tensor, bottleneck_tensor)
         test_accuracy = sess.run(evaluation_step, feed_dict={bottleneck_input:test_bottlenecks, ground_truth_input:test_ground_truth})
